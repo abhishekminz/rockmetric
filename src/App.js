@@ -4,7 +4,7 @@ import HighchartsReact from "highcharts-react-official";
 
 const App = () => {
 	const [data, setData] = useState([]);
-	const [options, setOptions] = useState({
+	const [lineOption, setLineOption] = useState({
 		chart: {
 			type: "line",
 		},
@@ -46,8 +46,46 @@ const App = () => {
 		},
 		series: [],
 	});
+	const [barOption, setBarOption] = useState({
+		chart: {
+			type: "bar",
+		},
+		title: {
+			text: "Tokyo and London monthly temperature",
+		},
+		subtitle: {
+			text:
+				'Source: <a href="https://en.wikipedia.org/wiki/World_population">Wikipedia.org</a>',
+		},
+		xAxis: {
+			categories: [],
+			title: {
+				text: null,
+			},
+		},
+		yAxis: {
+			min: 0,
+			title: {
+				text: "Temperature (°C)",
+				align: "high",
+			},
+			labels: {
+				overflow: "justify",
+			},
+		},
+		tooltip: {
+			valueSuffix: "(°C)",
+		},
+		legend: {
+			enabled: false,
+		},
+		credits: {
+			enabled: false,
+		},
+		series: [],
+	});
 
-	const months = [
+	const monthNames = [
 		"Jan",
 		"Feb",
 		"Mar",
@@ -72,14 +110,25 @@ const App = () => {
 		return totalMonthCount;
 	};
 
-	const segregateDataByCityName = function (arrayData) {
+	const segregateData = function (arrayData) {
 		const cities = {};
+		const months = {};
+		let monthCount = 0;
 		for (let i = 0; i < arrayData.length; i++) {
-			if (!cities[arrayData[i].city])
+			if (!cities[arrayData[i].city]) {
 				cities[arrayData[i].city] = [parseFloat(arrayData[i].value)];
-			else cities[arrayData[i].city].push(parseFloat(arrayData[i].value));
+				monthCount = 0;
+			} else {
+				cities[arrayData[i].city].push(parseFloat(arrayData[i].value));
+			}
+			if (!months[monthNames[monthCount]]) {
+				months[monthNames[monthCount]] = [parseFloat(arrayData[i].value)];
+			} else {
+				months[monthNames[monthCount]].push(parseFloat(arrayData[i].value));
+			}
+			monthCount++;
 		}
-		return cities;
+		return { dataByCityName: cities, dataByMonthName: months };
 	};
 
 	const getSeries = function (segData) {
@@ -97,14 +146,29 @@ const App = () => {
 		)
 			.then((response) => response.json())
 			.then((data) => {
-				const monthsToShow = months.slice(0, getTotalMonthCount(data));
-				const series = getSeries(segregateDataByCityName(data));
-				setOptions({
-					...options,
+				const monthCount = getTotalMonthCount(data);
+				const monthsToShow = monthNames.slice(0, monthCount);
+				const { dataByCityName, dataByMonthName } = segregateData(data);
+				const lineSeries = getSeries(dataByCityName);
+				const barSeries = getSeries(dataByMonthName);
+				const cityNames = Object.keys(dataByCityName);
+				console.log(cityNames, barSeries);
+				setLineOption({
+					...lineOption,
 					xAxis: {
 						categories: monthsToShow,
 					},
-					series,
+					series: lineSeries,
+				});
+				setBarOption({
+					...barOption,
+					xAxis: {
+						categories: cityNames,
+						title: {
+							text: null,
+						},
+					},
+					series: barSeries,
 				});
 				setData(data);
 			});
@@ -115,7 +179,14 @@ const App = () => {
 			{!data.length ? (
 				<div style={{ textAlign: "center" }}>Loding...</div>
 			) : (
-				<HighchartsReact highcharts={Highcharts} options={options} />
+				<React.Fragment>
+					<div style={{ border: "1px solid red", marginBottom: "15px" }}>
+						<HighchartsReact highcharts={Highcharts} options={lineOption} />
+					</div>
+					<div style={{ border: "1px solid red", marginBottom: "15px" }}>
+						<HighchartsReact highcharts={Highcharts} options={barOption} />
+					</div>
+				</React.Fragment>
 			)}
 		</div>
 	);
